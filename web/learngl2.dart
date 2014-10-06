@@ -15,6 +15,9 @@ part 'texture.dart';
 part 'inputs.dart';
 part 'sprite.dart';
 
+part 'entities.dart';
+part 'player.dart';
+
 GL.RenderingContext gl;
 const int SCREEN_W = 400;
 const int SCREEN_H = 400;
@@ -22,15 +25,18 @@ const int SCREEN_H = 400;
 Keyboard keyboard;
 Camera camera;
 Screen screen;
-//SpritePool spritePool;
 Random rand;
+
+List<Entity> entities;
+Player player;
+
 int tick = 0;
 int fps = 0;
 
 CanvasElement canvasElement;
 DivElement fpsElement;
 
-Vector3 fogColor = new Vector3(0.05, 0.11, 0.20);
+Vector3 fogColor = new Vector3(0.7, 0.75, 0.8);
 //Vector3 fogColor = new Vector3(0.0, 0.0, 0.0);
 
 void main() {
@@ -58,6 +64,27 @@ void start() {
 	rand = new Random();
 	camera = new Camera(0.0, 0.0, 0.0);
 	screen = new Screen(Shaders.sprite);
+
+	entities = new List<Entity>();
+	for (int i = 0; i < 40; i++) {
+		for (int j = 0; j < 4; j++) {
+			if ((i == 20 || i == 21) && j == 2)
+				continue;
+			Tree tree = new Tree();
+    		double x = cos(i) * 140;
+    		double y = j * -60.0;
+    		double z = sin(i) * 140;
+    		tree.position.setValues(x, y, z);
+//    		entities.add(tree);
+		}
+	}
+
+	player = new Player();
+	camera.player = player;
+
+	gl.viewport(0, 0, SCREEN_W, SCREEN_H);
+	gl.clearColor(fogColor.r, fogColor.g, fogColor.b, 1.0);
+	gl.enable(GL.DEPTH_TEST);
 
 	window.requestAnimationFrame(animate);
 }
@@ -94,6 +121,11 @@ void animate(double time) {
 }
 
 void update() {
+	player.update();
+	for (Entity e in entities) {
+		e.update();
+		e.eject(player);
+	}
 	camera.update();
 	keyboard.update();
 }
@@ -101,11 +133,11 @@ void update() {
 void render() {
 	fps++;
 	tick++;
-	gl.viewport(0, 0, SCREEN_W, SCREEN_H);
-	gl.clearColor(fogColor.r, fogColor.g, fogColor.b, 1.0);
 	gl.clear(GL.DEPTH_BUFFER_BIT | GL.COLOR_BUFFER_BIT);
-	gl.enable(GL.DEPTH_TEST);
 
-	camera.render();
 	screen.render();
+	player.render(screen.quad);
+	for (Entity e in entities) {
+		e.render(screen.quad);
+	}
 }

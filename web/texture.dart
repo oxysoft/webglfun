@@ -6,15 +6,21 @@ class Textures {
 	static Texture spritesheet;
 	static Texture tree;
 	static Texture tree2;
+	static Texture player;
 	static Texture beam;
 	static Texture grass;
+	static Texture grass2;
+	static Texture tt2;
 
 	static void loadAll() {
 		spritesheet = new Texture('res/gfx/spritesheet.png');
 		tree = new Texture('res/gfx/tree.png');
 		tree2 = new Texture('res/gfx/tree2.png');
+		player = new Texture('res/gfx/player.png');
 		beam = new Texture('res/gfx/beam.png');
 		grass = new Texture('res/gfx/grass.png');
+		grass2 = new Texture('res/gfx/grass2.png');
+		tt2 = new Texture('res/gfx/tt2.png');
 
 		all.forEach((e) => e.load());
 	}

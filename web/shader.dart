@@ -1,40 +1,57 @@
 part of engine;
 
 class Shaders {
-//	static Shader sprite = new Shader(
-//"""
-//precision highp float;
-//
-//attribute vec3 a_pos;
-//attribute vec2 a_offs;
-//attribute vec3 a_col;
-//
-//uniform mat4 u_projectMatrix;
-//uniform mat4 u_viewMatrix;
-//uniform mat4 u_modelMatrix;
-//
-//varying vec3 v_col;
-//
-//void main() {
-//	vec4 pp = u_modelMatrix * u_viewMatrix * vec4(a_pos, 1.0);
-//	float br = 1.0 / dot(pp.xyz, pp.xyz);
-//	v_col = a_col * vec3(br, br, br);
-//	//v_col = a_col;
-//	gl_Position = u_projectMatrix * pp;
-//}
-//
-//""",
-//"""
-//precision highp float;
-//
-//varying vec3 v_col;
-//
-//void main() {
-//	gl_FragColor = vec4(v_col, 1.0);
-//}
-//
-//"""
-//	);
+
+static Shader spriteInstancing = new Shader(
+"""
+precision highp float;
+
+attribute vec3 a_pos;
+attribute vec2 a_offs;
+attribute vec2 a_uv;
+attribute vec3 a_col;
+
+uniform mat4 u_viewMatrix;
+uniform mat4 u_projectMatrix;
+uniform mat4 u_billboardMatrix;
+
+varying float v_dist;
+varying vec2 v_uv;
+varying vec3 v_col;
+
+void main() {
+	v_uv = a_uv / 32.0;
+	v_col = a_col;
+
+	vec4 pos = u_projectMatrix * u_viewMatrix * (u_billboardMatrix * vec4(a_pos, 1.0));
+	v_dist = pos.z/6.0; // fade in the back
+	gl_Position = pos;
+}
+""",
+"""
+precision highp float;
+
+uniform sampler2D u_tex;
+uniform vec3 u_fogColor;
+
+varying float v_dist;
+varying vec2 v_uv;
+varying vec3 v_col;
+
+void main() {
+	vec4 col = texture2D(u_tex, v_uv);
+
+	if (col.a > 0.0) {
+		float fog = 1.0 / (v_dist*4.0+1.0);
+		fog = 2.0 * (fog * fog);
+		fog = max(0.0, fog);
+		fog = min(1.0, fog);
+		gl_FragColor = vec4((col.xyz * v_col).xyz*fog+u_fogColor*(1.0 - fog), col.a);
+	} else
+		discard;
+}
+"""
+);
 
 static Shader sprite = new Shader(
 """
@@ -48,14 +65,13 @@ uniform mat4 u_objectMatrix;
 uniform mat4 u_textureMatrix;
 
 varying vec2 v_texcoord;
-varying float v_dist;
 varying vec4 v_pos;
+varying float v_dist;
 
 void main() {
 	v_texcoord = (u_textureMatrix * vec4(a_pos, 1.0)).xy;
-	v_pos = vec4(u_projectMatrix * u_viewMatrix * vec4(a_pos, 1.0));
 	vec4 pos = u_projectMatrix * u_viewMatrix * u_objectMatrix * vec4(a_pos, 1.0);
-	v_dist = pos.z/2.0; // fade in the back
+	v_dist = pos.z/6.0; // fade in the back
 	gl_Position = pos;
 }
 """,
@@ -84,7 +100,8 @@ void main() {
 }
 
 """
-	);
+);
+
 }
 
 class Shader {
