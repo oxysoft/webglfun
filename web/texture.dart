@@ -10,6 +10,7 @@ class Textures {
 	static Texture beam;
 	static Texture grass;
 	static Texture grass2;
+	static Texture grassbotch;
 	static Texture tt2;
 
 	static void loadAll() {
@@ -20,6 +21,7 @@ class Textures {
 		beam = new Texture('res/gfx/beam.png');
 		grass = new Texture('res/gfx/grass.png');
 		grass2 = new Texture('res/gfx/grass2.png');
+		grassbotch = new Texture('res/gfx/grassbotch.png');
 		tt2 = new Texture('res/gfx/tt2.png');
 
 		all.forEach((e) => e.load());

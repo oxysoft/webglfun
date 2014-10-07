@@ -7,14 +7,15 @@ class SpritePool {
 	static const int MAX_VERTICES = 65536;
 	static const int MAX_SPRITES = MAX_VERTICES ~/ VERTICES_PER_SPRITE;
 
-	List<Sprite> sprites = [MAX_SPRITES];
+	List<Sprite> sprites = [];
 
 	Shader shader;
 	GL.Buffer vertexBuffer, indexBuffer;
 	int posLocation, offsLocation, uvLocation, rgbLocation;
 	GL.UniformLocation projectMatrixLocation, viewMatrixLocation, modelMatrixLocation, billboardMatrixLocation, fogColorLocation;
+	Texture texture;
 
-	SpritePool(this.shader) {
+	SpritePool(this.shader, this.texture) {
 		// locations
 		shader.use();
 
@@ -47,30 +48,45 @@ class SpritePool {
         gl.bufferDataTyped(GL.ELEMENT_ARRAY_BUFFER, indices, GL.STATIC_DRAW);
 	}
 
-	void addSprite(Sprite sprite) {
+	void addSprite(Sprite sprite, [bool bindBuffer = true]) {
 		int index = sprite.index = sprites.length;
 
 		if (index < MAX_SPRITES) {
 			int offset = index * FLOATS_PER_VERTEX * VERTICES_PER_SPRITE;
-			gl.bindBuffer(GL.ARRAY_BUFFER, vertexBuffer);
+			if (bindBuffer) gl.bindBuffer(GL.ARRAY_BUFFER, vertexBuffer);
 			gl.bufferSubDataTyped(GL.ARRAY_BUFFER, offset * BYTES_PER_FLOAT, sprite.vertices);
 		}
 
 		sprites.add(sprite);
 	}
 
+	void updateSprite(Sprite sprite, [bool bindBuffer = true]) {
+		int index = sprite.index;
+
+		if (index >= 0 && index < MAX_SPRITES) {
+			int offset = index * FLOATS_PER_VERTEX * VERTICES_PER_SPRITE;
+			if (bindBuffer) gl.bindBuffer(GL.ARRAY_BUFFER, vertexBuffer);
+			gl.bufferSubDataTyped(GL.ARRAY_BUFFER, offset * BYTES_PER_FLOAT, sprite.vertices);
+		}
+	}
+
 	void render() {
 		shader.use();
-		gl.bindTexture(GL.TEXTURE_2D, Textures.tt2.tex);
+		gl.bindTexture(GL.TEXTURE_2D, texture.tex);
 
 		gl.uniform3fv(fogColorLocation, fogColor.storage);
 		camera.apply(projectMatrixLocation, viewMatrixLocation);
 
-		Matrix4 billboardMatrix = new Matrix4.identity();
-		//billboardMatrix.translate(-0.5, -0.5);
-		billboardMatrix.rotateY(camera.yaw * PI/180);
-		//billboardMatrix.translate(0.5, 0.5);
-		gl.uniformMatrix4fv(billboardMatrixLocation, false, billboardMatrix.storage);
+//		for (Sprite sprite in sprites) {
+//			sprite.updateModelMatrix();
+//		}
+
+		Float32List vertices = new Float32List(sprites.length * VERTICES_PER_SPRITE * FLOATS_PER_VERTEX);
+		for (int i = 0; i < sprites.length; i++) {
+			vertices.setAll(i * VERTICES_PER_SPRITE * FLOATS_PER_VERTEX, sprites[i].vertices);
+		}
+		gl.bindBuffer(GL.ARRAY_BUFFER, vertexBuffer);
+		gl.bufferSubDataTyped(GL.ARRAY_BUFFER, 0, vertices);
 
 		gl.enableVertexAttribArray(posLocation);
 		gl.enableVertexAttribArray(uvLocation);
@@ -99,14 +115,21 @@ class Sprite {
 
 	Sprite(this.x, this.y, this.z, this.w, this.h, this.u, this.v, this.r, this.g, this.b) {
 		modelMatrix = new Matrix4.identity();
+
+//		x, y, z, xo+0, yo+0, u+0+0.5, v+h-0.5, r, g, b,
+//		x, y, z, xo+w, yo+0, u+w-0.5, v+h-0.5, r, g, b,
+//		x, y, z, xo+w, yo+h, u+w-0.5, v+0+0.5, r, g, b,
+//		x, y, z, xo+0, yo+h, u+0+0.5, v+0+0.5, r, g, b,
+
 		vertices = new Float32List.fromList([
-			0.0, 0.0, 0.0, u+0-0.5, v+h-0.5, r, g, b,
-			0.0, 1.0, 0.0, u+w+0.5, v+h-0.5, r, g, b,
-			1.0, 1.0, 0.0, u+w+0.5, v+0+0.5, r, g, b,
-			1.0, 0.0, 0.0, u+0-0.5, v+0+0.5, r, g, b,
+			0.0, 0.0, 0.0, 0.0, 0.0, r, g, b,
+			0.0, 1.0, 0.0, 0.0, 1.0, r, g, b,
+			1.0, 1.0, 0.0, 1.0, 1.0, r, g, b,
+			1.0, 0.0, 0.0, 1.0, 0.0, r, g, b,
 		]);
 
-		updateVertices();
+
+		updateModelMatrix();
 	}
 
 	void updateModelMatrix() {
@@ -116,12 +139,13 @@ class Sprite {
 
 		modelMatrix.translate(0.5, 0.5);
 		modelMatrix.rotateY(-camera.yaw * PI/180);
+//		modelMatrix.rotateX(camera.pitch * PI/180);
 		modelMatrix.translate(-0.5, -0.5);
+
+		updateVertices();
 	}
 
 	void updateVertices() {
-		updateModelMatrix();
-
 		Vector3 v1 = new Vector3(0.0, 0.0, 0.0);
 		Vector3 v2 = new Vector3(0.0, 1.0, 0.0);
 		Vector3 v3 = new Vector3(1.0, 1.0, 0.0);
@@ -136,6 +160,13 @@ class Sprite {
 		vertices.setAll(1 * SpritePool.FLOATS_PER_VERTEX, [v2.x, v2.y, v2.z]);
 		vertices.setAll(2 * SpritePool.FLOATS_PER_VERTEX, [v3.x, v3.y, v3.z]);
 		vertices.setAll(3 * SpritePool.FLOATS_PER_VERTEX, [v4.x, v4.y, v4.z]);
+	}
+
+	void updateUvs() {
+		vertices.setAll(0 * SpritePool.FLOATS_PER_VERTEX + 3, [u+0-0.5, v+h-0.5]);
+		vertices.setAll(1 * SpritePool.FLOATS_PER_VERTEX + 3, [u+w+0.5, v+h-0.5]);
+		vertices.setAll(2 * SpritePool.FLOATS_PER_VERTEX + 3, [u+w+0.5, v+0+0.5]);
+		vertices.setAll(3 * SpritePool.FLOATS_PER_VERTEX + 3, [u+0-0.5, v+0+0.5]);
 	}
 
 }

@@ -13,17 +13,16 @@ attribute vec3 a_col;
 
 uniform mat4 u_viewMatrix;
 uniform mat4 u_projectMatrix;
-uniform mat4 u_billboardMatrix;
 
 varying float v_dist;
 varying vec2 v_uv;
 varying vec3 v_col;
 
 void main() {
-	v_uv = a_uv / 32.0;
+	v_uv = a_uv;
 	v_col = a_col;
 
-	vec4 pos = u_projectMatrix * u_viewMatrix * (u_billboardMatrix * vec4(a_pos, 1.0));
+	vec4 pos = u_projectMatrix * u_viewMatrix * vec4(a_pos, 1.0);
 	v_dist = pos.z/6.0; // fade in the back
 	gl_Position = pos;
 }
